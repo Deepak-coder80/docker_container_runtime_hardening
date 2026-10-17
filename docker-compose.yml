@@ -1,0 +1,53 @@
+services:
+  app:
+    build:
+      context: .
+    image: myapp:latest
+    container_name: myapp
+    init: true
+
+    # 1. Run as a non-root user (matches USER in the Dockerfile)
+    user: "1000:1000"
+
+    # 2. Read-only root filesystem, with a small writable /tmp in memory
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,nodev,size=64m
+
+    # 3. Drop every Linux capability
+    cap_drop:
+      - ALL
+    # Add back only what your app needs. On port 8080 as a non-root
+    # user, you need nothing. See the note below before you uncomment.
+    # cap_add:
+    #   - NET_BIND_SERVICE
+
+    # Bonus: setuid binaries can't raise privileges
+    security_opt:
+      - no-new-privileges:true
+
+    # Resource limits, so one bad process can't starve the host
+    pids_limit: 200
+    mem_limit: 512m
+    cpus: 1.0
+
+    ports:
+      - "8080:8080"
+
+    environment:
+      APP_ENV: production
+
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/health')"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+    restart: unless-stopped
